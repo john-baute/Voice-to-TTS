@@ -51,13 +51,8 @@ if __name__ == "__main__":
     try:
         device_idx, device_info = get_device_index_by_name(target_name)
         print(f"\nFound device '{target_name}' at index {device_idx} (in:{device_info['max_input_channels']} out:{device_info['max_output_channels']})")
-        if device_info['max_output_channels'] == 0:
-            print("Warning: this device is input-only (it's a virtual microphone). You cannot play audio to it.")
-            print("To send audio into the virtual cable, play to the corresponding 'CABLE Input (VB-Audio Virtual Cable)' device (the one with out>0).")
-        else:
-            print("Using this device for playback.")
-            # Replace with your generated TTS file
-            play_mp3_to_device("tts_output.mp3", device_idx)
+        print("Playing test sound to device...")
+        play_mp3_to_device("insert_file_here.mp3", device_idx)
     except RuntimeError as e:
         print(e)
         print("Falling back to interactive selection or substring search.")
