@@ -14,10 +14,18 @@ def list_devices_verbose():
 def find_output_devices_by_name_substring(sub):
     matches = []
     devices = sd.query_devices()
+    hostapis = sd.query_hostapis()
     for i, d in enumerate(devices):
-        if sub.lower() in d['name'].lower() and d['max_output_channels'] > 0:
+        if sub.lower() in d['name'].lower() and d['max_output_channels'] > 0 and d['hostapi'] == 'WASAPI':
             matches.append((i, d))
     return matches
+
+def get_device_index_by_name(name):
+    devices = sd.query_devices()
+    for i, d in enumerate(devices):
+        if d['name'] == name:
+            return i, d
+    raise RuntimeError(f"Device named '{name}' not found")
 
 def play_file_to_device(path, device_index):
     data, sr = sf.read(path, dtype='float32')
@@ -38,43 +46,18 @@ if __name__ == "__main__":
     print("Available audio devices (index : name | hostapi | in/out | samplerate):")
     list_devices_verbose()
 
-    # Try common substrings; adjust if your devices use different names
-    # substrings = ["cable", "(vb-audio", "voice", "voicemeeter"]
-    # matches = []
-    # for s in substrings:
-    #     matches = find_output_devices_by_name_substring(s)
-    #     if matches:
-    #         print(f"\nFound devices matching '{s}':")
-    #         break
-
-    # if not matches:
-    #     # fallback: list all output-capable devices
-    #     devices = sd.query_devices()
-    #     matches = [(i, d) for i, d in enumerate(devices) if d['max_output_channels'] > 0]
-    #     print("\nNo specific 'Cable' devices found — showing all output-capable devices:")
-
-    # for i, d in matches:
-    #     print(f"{i}: {d['name']} | out:{d['max_output_channels']} sr:{int(d['default_samplerate'])}")
-
-    # if len(matches) == 1:
-    #     device_idx = matches[0][0]
-    #     print(f"\nAuto-selecting device index {device_idx}")
-    # else:
-    #     # ask user to pick the index from the printed list
-    #     while True:
-    #         try:
-    #             choice = input("\nEnter the device index to use (or press Enter to use the first match): ").strip()
-    #             if choice == "":
-    #                 device_idx = matches[0][0]
-    #                 break
-    #             device_idx = int(choice)
-    #             # validate
-    #             if any(device_idx == m[0] for m in matches):
-    #                 break
-    #             print("Index not in the listed matches. Try again.")
-    #         except ValueError:
-    #             print("Please enter a valid integer index.")
-
-    # print("Using device index", device_idx)
-    # # Replace with your generated TTS file
-    # play_mp3_to_device("tts_output.mp3", device_idx)
+    # Hardcode by exact device name (safer than index). Replace with your device name if different.
+    target_name = "CABLE Output (VB-Audio Virtual Cable)"
+    try:
+        device_idx, device_info = get_device_index_by_name(target_name)
+        print(f"\nFound device '{target_name}' at index {device_idx} (in:{device_info['max_input_channels']} out:{device_info['max_output_channels']})")
+        if device_info['max_output_channels'] == 0:
+            print("Warning: this device is input-only (it's a virtual microphone). You cannot play audio to it.")
+            print("To send audio into the virtual cable, play to the corresponding 'CABLE Input (VB-Audio Virtual Cable)' device (the one with out>0).")
+        else:
+            print("Using this device for playback.")
+            # Replace with your generated TTS file
+            play_mp3_to_device("tts_output.mp3", device_idx)
+    except RuntimeError as e:
+        print(e)
+        print("Falling back to interactive selection or substring search.")
