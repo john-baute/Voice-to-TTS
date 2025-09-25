@@ -37,7 +37,7 @@ if __name__ == "__main__":
     print("Available audio devices:")
     list_devices()
     # Change the substring to match your device name; typical: "cable" or "vb-audio"
-    device_idx = find_device_index_by_name_substring("cable")
-    print("Using device index", device_idx)
-    # Replace with your generated TTS file
-    play_mp3_to_device("tts_output.mp3", device_idx)
+    # device_idx = find_device_index_by_name_substring("cable")
+    # print("Using device index", device_idx)
+    # # Replace with your generated TTS file
+    # play_mp3_to_device("tts_output.mp3", device_idx)
