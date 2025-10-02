@@ -8,7 +8,9 @@ from vosk import Model, KaldiRecognizer
 
 DEFAULT_MODEL = "vosk-model-small-en-us"  # folder name you downloaded
 SAMPLE_RATE = 16000                        # model-friendly SR
-DEFAULT_OUTFILE = "transcripts.txt"
+TRANSCRIPTS_DIR = "transcripts"            # folder for transcript files
+DEFAULT_OUTFILE = os.path.join(TRANSCRIPTS_DIR, "transcripts.txt")  # default output file
+# Removed old DEFAULT_OUTFILE constant
 
 q = queue.Queue()
 
@@ -112,6 +114,10 @@ def main(model_path, device, samplerate):
 
     print(f"Opening input device index {device} at {samplerate} Hz")
 
+    # Ensure transcripts directory exists
+    transcripts_dir = os.path.join(os.getcwd(), TRANSCRIPTS_DIR)
+    os.makedirs(transcripts_dir, exist_ok=True)
+
     # Open default transcripts file in append mode
     out_path = os.path.join(os.getcwd(), DEFAULT_OUTFILE)
     out_fh = None
@@ -129,7 +135,7 @@ def main(model_path, device, samplerate):
         sys.exit(1)
 
     try:
-        with sd.RawInputStream(samplerate=samplerate, blocksize=8000, dtype='int16',
+        with sd.RawInputStream(samplerate=samplerate, blocksize=4000, dtype='int16',
                             channels=1, callback=callback, device=device) as stream:
             if not stream.active:
                 raise sd.PortAudioError("Failed to start the audio stream")
