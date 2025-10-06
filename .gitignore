@@ -1,2 +1,5 @@
 /venv
 /vosk-model-small-en-us
+/*pycache*
+/transcripts/*
+/audio_clips/*

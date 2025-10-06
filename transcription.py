@@ -86,7 +86,21 @@ def validate_device(device_id, samplerate):
     except sd.PortAudioError as e:
         raise ValueError(f"Error validating device {device_id}: {e}")
 
-def main(model_path, device, samplerate):
+def main(model_path=DEFAULT_MODEL, device=None, samplerate=SAMPLE_RATE, callback_fn=None):
+    # Flag for controlling the main loop
+    running = True
+    
+    def stop_recording():
+        nonlocal running
+        running = False
+    
+    # If device is None, use default device
+    if device is None:
+        device = sd.default.device[0]
+        if device is None:
+            print("No default input device. Use --list-devices to list available indices.", file=sys.stderr)
+            sys.exit(1)
+            
     # Resolve model path (allow nested/extracted folders)
     resolved_model = find_model_path(model_path)
     if not resolved_model:
@@ -141,9 +155,14 @@ def main(model_path, device, samplerate):
                 raise sd.PortAudioError("Failed to start the audio stream")
             
             print("Listening... Ctrl+C to stop.")
-            while True:
+            while running:
                 try:
-                    data = q.get()
+                    # Use a timeout to check the running flag periodically
+                    try:
+                        data = q.get(timeout=0.1)
+                    except queue.Empty:
+                        continue
+
                     if rec.AcceptWaveform(data):
                         res = json.loads(rec.Result())
                         text = res.get("text", "")
@@ -157,16 +176,27 @@ def main(model_path, device, samplerate):
                                     out_fh.flush()
                                 except IOError as e:
                                     print(f"\nError writing to transcripts file: {e}", file=sys.stderr)
+                            
+                            # Call the callback function with the transcribed text if provided
+                            if callback_fn:
+                                try:
+                                    callback_fn(text)
+                                except Exception as e:
+                                    print(f"\nError in callback function: {e}", file=sys.stderr)
                     else:
                         part = json.loads(rec.PartialResult())
                         # show partial inline
                         print("Partial:", part.get("partial", ""), end="\r")
-                except queue.Empty:
-                    continue
+                except Exception as e:
+                    print(f"\nError processing audio: {e}", file=sys.stderr)
+                    if not running:  # Don't continue if we're shutting down
+                        break
     except KeyboardInterrupt:
-        print("\nStopping...")
+        print("\nReceived Ctrl+C, stopping...")
+        stop_recording()  # Set the flag to stop the loop
     except (sd.PortAudioError, IOError) as e:
         print(f"\nError during audio processing: {e}", file=sys.stderr)
+        stop_recording()  # Ensure we stop on errors too
         raise
     finally:
         if out_fh:
@@ -197,7 +227,7 @@ if __name__ == "__main__":
             sys.exit(1)
     
     try:
-        main(args.model, device_to_use, args.samplerate)
+        main(model_path=args.model, device=device_to_use, samplerate=args.samplerate)
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
